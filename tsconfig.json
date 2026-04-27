@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    /* Bahasa & Target Lingkungan */
+    "target": "ES2022",                                  /* Target ECMAScript modern (Node 18+ yang dipakai Vercel) */
+    "module": "CommonJS",                                /* Standar module untuk Express.js */
+    "moduleResolution": "node",                          /* Cara TS mencari module (standar Node) */
+    
+    /* Direktori */
+    "rootDir": ".",                                      /* Root folder (karena kita punya folder /api dan /src) */
+    "outDir": "./dist",                                  /* Output hasil build (meski Vercel meng-handle ini otomatis) */
+    
+    /* Interoperabilitas (PENTING untuk Express & Library lain) */
+    "esModuleInterop": true,                             /* Mengizinkan import default seperti `import express from 'express'` */
+    "allowSyntheticDefaultImports": true,                /* Mendukung library yang tidak punya default export */
+    "resolveJsonModule": true,                           /* Mengizinkan import file .json jika dibutuhkan nanti */
+
+    /* Pengecekan Tipe (Kunci "Merah-Merah") */
+    "strict": true,                                      /* Mengaktifkan semua pengecekan ketat (Standar Best Practice) */
+    "noImplicitAny": true,                               /* Mencegah penggunaan tipe 'any' yang tidak disengaja */
+    "strictNullChecks": true,                            /* Memastikan kita menangani null/undefined (Penting untuk database) */
+    
+    /* Penyelamat Build (Magic Bullets) */
+    "skipLibCheck": true,                                /* MENGABAIKAN error merah di dalam folder node_modules */
+    "forceConsistentCasingInFileNames": true             /* Sensitif terhadap huruf besar/kecil pada nama file (mencegah error di Linux/Vercel) */
+  },
+  "include": [
+    "api/**/*",                                          /* Sertakan folder entry point Vercel */
+    "src/**/*",                                          /* Sertakan folder utama kita */
+    "drizzle.config.ts"                                  /* Sertakan config drizzle */
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "drizzle"                                            /* Folder hasil output migrasi drizzle tidak perlu di-compile ulang */
+  ]
+}
