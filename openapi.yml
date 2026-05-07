@@ -1,887 +1,621 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
-  title: BE-MAN1OKI API
-  description: API Backend untuk Sistem Manajemen Sekolah
+  title: MAN 1 OKI - Admin API
   version: 1.0.0
-  contact:
-    name: Support
-    email: support@man1oki.id
-
+  description: >-
+    Admin-facing API for managing Berita, Galeri, Kegiatan, and Pengumuman
+    (designed to match the frontend stores in this repository).
 servers:
   - url: http://localhost:3000/api
-    description: Development Server
-  - url: https://api.man1oki.id
-    description: Production Server
-
+    description: Local dev server
 tags:
-  - name: Authentication
-    description: Login dan autentikasi admin
-  - name: Users
-    description: Manajemen pengguna dan admin
-  - name: News
-    description: Manajemen berita/artikel sekolah
-  - name: Categories
-    description: Manajemen kategori berita
-  - name: Upload
-    description: Upload file media
-
-components:
-  securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: Token JWT dari login
-
-  schemas:
-    User:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: ID pengguna dari Supabase Auth
-        name:
-          type: string
-          maxLength: 255
-          description: Nama pengguna
-        email:
-          type: string
-          format: email
-          description: Email pengguna
-        role:
-          type: string
-          enum: [admin, teacher, student]
-          description: Role pengguna
-        createdAt:
-          type: string
-          format: date-time
-          description: Waktu dibuat
-
-    News:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: ID berita
-        title:
-          type: string
-          maxLength: 255
-          description: Judul berita
-        slug:
-          type: string
-          description: URL slug berita yang unik
-        content:
-          type: object
-          description: Konten Tiptap JSON (hanya dalam detail endpoint)
-        thumbnail:
-          type: string
-          format: uri
-          description: URL thumbnail berita di storage
-        status:
-          type: string
-          enum: [draft, published, archived]
-          description: Status publikasi berita
-        author:
-          type: object
-          description: Informasi penulis berita
-          properties:
-            id:
-              type: string
-              format: uuid
-            name:
-              type: string
-        category:
-          type: object
-          nullable: true
-          description: Informasi kategori berita
-          properties:
-            id:
-              type: integer
-            name:
-              type: string
-        createdAt:
-          type: string
-          format: date-time
-          description: Waktu dibuat
-        updatedAt:
-          type: string
-          format: date-time
-          description: Waktu diperbarui (hanya dalam detail endpoint)
-
-    Category:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: ID kategori
-        name:
-          type: string
-          maxLength: 100
-          description: Nama kategori
-        slug:
-          type: string
-          maxLength: 100
-          description: URL slug kategori
-
-    ApiResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          description: Status keberhasilan request
-        message:
-          type: string
-          description: Pesan respons
-        data:
-          type: object
-          description: Data hasil request
-        error:
-          type: object
-          description: Detail error jika ada
-
-    ErrorResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: false
-        message:
-          type: string
-        error:
-          type: object
-
+  - name: Berita
+  - name: Galeri
+  - name: Kegiatan
+  - name: Pengumuman
 paths:
-  # ==========================================
-  # AUTHENTICATION ENDPOINTS
-  # ==========================================
-  /users/login:
-    post:
-      tags:
-        - Authentication
-      summary: Login Admin
-      description: Melakukan login dan mendapatkan access token JWT
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                  format: email
-                  example: admin@man1oki.id
-                password:
-                  type: string
-                  minLength: 1
-                  example: password123
-              required:
-                - email
-                - password
-      responses:
-        '200':
-          description: Login berhasil
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Login berhasil!
-                  data:
-                    type: object
-                    properties:
-                      accessToken:
-                        type: string
-                        description: JWT token untuk autentikasi
-                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-                      user:
-                        $ref: '#/components/schemas/User'
-        '400':
-          description: Validasi gagal atau email/password salah
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Email atau password tidak valid
-        '500':
-          description: Error server
-
-  # ==========================================
-  # USER ENDPOINTS
-  # ==========================================
-  /users/setup-admin:
-    post:
-      tags:
-        - Users
-      summary: Setup Admin Pertama Kali
-      description: Membuat akun admin untuk pertama kali di sistem
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                  minLength: 3
-                  maxLength: 100
-                  example: Kepala Sekolah
-                email:
-                  type: string
-                  format: email
-                  example: admin@man1oki.id
-                password:
-                  type: string
-                  minLength: 6
-                  maxLength: 50
-                  example: AdminPassword123
-              required:
-                - name
-                - email
-                - password
-      responses:
-        '201':
-          description: Admin berhasil dibuat
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Admin berhasil dibuat!
-                  data:
-                    $ref: '#/components/schemas/User'
-        '400':
-          description: Validasi gagal
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Error server
-
-  /users/dashboard:
+  /berita:
     get:
-      tags:
-        - Users
-      summary: Ambil Data Dashboard Admin
-      description: Mengambil informasi dashboard admin termasuk statistik
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Data dashboard berhasil diambil
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Selamat datang di Dashboard Admin
-                  data:
-                    type: object
-                    properties:
-                      adminProfile:
-                        $ref: '#/components/schemas/User'
-                      stats:
-                        type: object
-                        properties:
-                          totalNews:
-                            type: integer
-                            example: 15
-                          totalStudents:
-                            type: integer
-                            example: 320
-                          recentActivity:
-                            type: string
-                            example: Server running stable
-        '401':
-          description: Token tidak valid atau tidak ada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Error server
-
-  # ==========================================
-  # NEWS ENDPOINTS
-  # ==========================================
-  /news:
-    get:
-      tags:
-        - News
-      summary: Daftar Semua Berita
-      description: Mengambil daftar semua berita yang telah dipublikasikan (publik, tidak perlu autentikasi)
+      tags: [Berita]
+      summary: List berita (with optional pagination and filter)
       parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: text search in title or excerpt
         - name: status
           in: query
           schema:
             type: string
-            enum: [draft, published, archived]
-          description: Filter berdasarkan status (opsional, belum diimplementasi)
+            enum: [published, draft]
         - name: page
           in: query
           schema:
             type: integer
-            default: 1
-          description: Nomor halaman untuk pagination (opsional, belum diimplementasi)
-        - name: limit
+            minimum: 1
+          description: Page number (1-based)
+        - name: perPage
           in: query
           schema:
             type: integer
-            default: 10
-          description: Jumlah item per halaman (opsional, belum diimplementasi)
+            minimum: 1
+            maximum: 100
+          description: Items per page
       responses:
         '200':
-          description: Daftar berita berhasil diambil
+          description: A paginated list of berita
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Daftar berita berhasil diambil
-                  data:
+                  items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/News'
-        '500':
-          description: Error server
-
+                      $ref: '#/components/schemas/BeritaItem'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  perPage:
+                    type: integer
     post:
-      tags:
-        - News
-      summary: Buat Berita Baru
-      description: Membuat berita baru di sistem dengan upload thumbnail (hanya untuk admin yang login)
-      security:
-        - BearerAuth: []
+      tags: [Berita]
+      summary: Create berita
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               type: object
+              required: [title, category, date, status, author, content, excerpt, image]
               properties:
                 title:
                   type: string
-                  minLength: 5
-                  maxLength: 255
-                  example: Juara Lomba Science Olympiad 2024
-                content:
+                category:
                   type: string
-                  description: Konten JSON dari Tiptap editor (dikirim sebagai string)
-                  example: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Siswa kami telah meraih juara..."}]}]}'
-                thumbnail:
+                date:
                   type: string
-                  format: binary
-                  description: File gambar thumbnail (JPG, PNG, WebP, etc) - WAJIB
+                  format: date
                 status:
                   type: string
-                  enum: [draft, published, archived]
-                  default: draft
-                  example: published
-                categoryId:
+                  enum: [published, draft]
+                author:
                   type: string
-                  nullable: true
-                  example: '1'
-              required:
-                - title
-                - content
-                - thumbnail
-      responses:
-        '201':
-          description: Berita berhasil dibuat
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Berita berhasil diterbitkan
-                  data:
-                    $ref: '#/components/schemas/News'
-        '400':
-          description: Validasi gagal atau file thumbnail tidak diupload
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: false
-                  message:
-                    type: string
-                    example: File thumbnail wajib diupload
-        '401':
-          description: Token tidak valid atau tidak ada
-        '500':
-          description: Error server
-
-  /news/{slug}:
-    get:
-      tags:
-        - News
-      summary: Detail Berita
-      description: Mengambil detail berita berdasarkan slug URL
-      parameters:
-        - name: slug
-          in: path
-          required: true
-          schema:
-            type: string
-          example: juara-lomba-science-olympiad-2024
-      responses:
-        '200':
-          description: Detail berita berhasil diambil
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Detail berita berhasil diambil
-                  data:
-                    $ref: '#/components/schemas/News'
-        '404':
-          description: Berita tidak ditemukan
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Error server
-
-  /news/{id}:
-    put:
-      tags:
-        - News
-      summary: Update Berita
-      description: Mengupdate berita yang sudah ada berdasarkan ID (thumbnail bersifat opsional)
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          example: 1
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                title:
-                  type: string
-                  minLength: 5
-                  maxLength: 255
-                  example: Juara Lomba Science Olympiad 2024 (Update)
                 content:
                   type: string
-                  description: Konten JSON dari Tiptap editor (dikirim sebagai string)
-                  example: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Update berita..."}]}]}'
-                thumbnail:
+                excerpt:
                   type: string
-                  format: binary
-                  description: File gambar thumbnail baru (JPG, PNG, WebP, etc) - OPSIONAL
-                status:
-                  type: string
-                  enum: [draft, published, archived]
-                  example: published
-                categoryId:
-                  type: string
-                  nullable: true
-                  example: '2'
-      responses:
-        '200':
-          description: Berita berhasil diperbarui
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Berita berhasil diperbarui
-                  data:
-                    $ref: '#/components/schemas/News'
-        '400':
-          description: Validasi gagal
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: false
-                  message:
-                    type: string
-        '401':
-          description: Token tidak valid atau tidak ada
-        '404':
-          description: Berita tidak ditemukan
-        '500':
-          description: Error server
-
-    delete:
-      tags:
-        - News
-      summary: Hapus Berita
-      description: Menghapus berita berdasarkan ID
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          example: 1
-      responses:
-        '200':
-          description: Berita berhasil dihapus
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Berita berhasil dihapus
-        '401':
-          description: Token tidak valid atau tidak ada
-        '404':
-          description: Berita tidak ditemukan
-        '500':
-          description: Error server
-
-  # ==========================================
-  # UPLOAD ENDPOINTS
-  # ==========================================
-  /upload/image:
-    post:
-      tags:
-        - Upload
-      summary: Upload Gambar
-      description: Upload gambar untuk Tiptap editor atau thumbnail berita
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
                 image:
                   type: string
                   format: binary
-                  description: File gambar (JPG, PNG, WebP, etc)
-              required:
-                - image
-      responses:
-        '200':
-          description: Gambar berhasil diupload
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Gambar berhasil diupload
-                  data:
-                    type: object
-                    properties:
-                      url:
-                        type: string
-                        format: uri
-                        example: https://storage.googleapis.com/bucket/image-12345.jpg
-        '400':
-          description: File gambar tidak ditemukan
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: false
-                  message:
-                    type: string
-                    example: File gambar tidak ditemukan
-        '401':
-          description: Token tidak valid atau tidak ada
-        '413':
-          description: Ukuran file terlalu besar
-        '415':
-          description: Format file tidak didukung
-        '500':
-          description: Error server
-
-  # ==========================================
-  # CATEGORY ENDPOINTS
-  # ==========================================
-  /categories:
-    get:
-      tags:
-        - Categories
-      summary: Daftar Semua Kategori
-      description: Mengambil daftar semua kategori berita (publik, tidak perlu autentikasi)
-      responses:
-        '200':
-          description: Daftar kategori berhasil diambil
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Daftar kategori berhasil diambil
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Category'
-        '500':
-          description: Error server
-
-    post:
-      tags:
-        - Categories
-      summary: Buat Kategori Baru
-      description: Membuat kategori berita baru (hanya untuk admin yang login)
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                  minLength: 2
-                  maxLength: 100
-                  example: Pengumuman Penting
-              required:
-                - name
+                  description: Image file
       responses:
         '201':
-          description: Kategori berhasil ditambahkan
+          description: Berita created
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Kategori berhasil ditambahkan
-                  data:
-                    $ref: '#/components/schemas/Category'
-        '400':
-          description: Validasi gagal
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: false
-                  message:
-                    type: string
-        '401':
-          description: Token tidak valid atau tidak ada
-        '500':
-          description: Error server
-
-  /categories/{id}:
+                $ref: '#/components/schemas/BeritaItem'
+  /berita/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
     get:
-      tags:
-        - Categories
-      summary: Detail Kategori
-      description: Mengambil detail kategori berdasarkan ID (publik)
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          example: 1
+      tags: [Berita]
+      summary: Get berita by id
       responses:
         '200':
-          description: Detail kategori berhasil diambil
+          description: Berita found
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Detail kategori berhasil diambil
-                  data:
-                    $ref: '#/components/schemas/Category'
+                $ref: '#/components/schemas/BeritaItem'
         '404':
-          description: Kategori tidak ditemukan
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: false
-                  message:
-                    type: string
-                    example: Kategori tidak ditemukan
-        '500':
-          description: Error server
-
+          description: Not found
     put:
-      tags:
-        - Categories
-      summary: Update Kategori
-      description: Mengupdate kategori berdasarkan ID (hanya untuk admin)
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          example: 1
+      tags: [Berita]
+      summary: Update berita by id
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               type: object
+              required: [title, category, date, status, author, content, excerpt, image]
+              properties:
+                title:
+                  type: string
+                category:
+                  type: string
+                date:
+                  type: string
+                  format: date
+                status:
+                  type: string
+                  enum: [published, draft]
+                author:
+                  type: string
+                content:
+                  type: string
+                excerpt:
+                  type: string
+                image:
+                  type: string
+                  format: binary
+                  description: Image file
+      responses:
+        '200':
+          description: Updated
+    delete:
+      tags: [Berita]
+      summary: Delete berita by id
+      responses:
+        '204':
+          description: Deleted
+
+  /galeri:
+    get:
+      tags: [Galeri]
+      summary: List galeri
+      responses:
+        '200':
+          description: List of galeri
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GaleriItem'
+    post:
+      tags: [Galeri]
+      summary: Create galeri item
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, category, url, date]
+              properties:
+                title:
+                  type: string
+                category:
+                  type: string
+                url:
+                  type: string
+                  format: binary
+                  description: Image file
+                date:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: Created
+  /galeri/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [Galeri]
+      summary: Get galeri by id
+      responses:
+        '200':
+          description: Galeri item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GaleriItem'
+    put:
+      tags: [Galeri]
+      summary: Update galeri
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, category, url, date]
+              properties:
+                title:
+                  type: string
+                category:
+                  type: string
+                url:
+                  type: string
+                  format: binary
+                  description: Image file
+                date:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: Updated
+    delete:
+      tags: [Galeri]
+      summary: Delete galeri
+      responses:
+        '204':
+          description: Deleted
+
+  /kegiatan:
+    get:
+      tags: [Kegiatan]
+      summary: List kegiatan
+      responses:
+        '200':
+          description: List of kegiatan
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KegiatanItem'
+    post:
+      tags: [Kegiatan]
+      summary: Create kegiatan
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [name, image, description, schedule, coordinator, status]
               properties:
                 name:
                   type: string
-                  minLength: 2
-                  maxLength: 100
-                  example: Pengumuman Penting (Update)
-              required:
-                - name
+                image:
+                  type: string
+                  format: binary
+                  description: Image file
+                description:
+                  type: string
+                schedule:
+                  type: string
+                coordinator:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, inactive]
+      responses:
+        '201':
+          description: Created
+  /kegiatan/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [Kegiatan]
+      summary: Get kegiatan by id
       responses:
         '200':
-          description: Kategori berhasil diperbarui
+          description: Kegiatan item
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Kategori berhasil diperbarui
-                  data:
-                    $ref: '#/components/schemas/Category'
-        '400':
-          description: Validasi gagal
-        '401':
-          description: Token tidak valid atau tidak ada
-        '404':
-          description: Kategori tidak ditemukan
-        '500':
-          description: Error server
-
+                $ref: '#/components/schemas/KegiatanItem'
+    put:
+      tags: [Kegiatan]
+      summary: Update kegiatan
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [name, image, description, schedule, coordinator, status]
+              properties:
+                name:
+                  type: string
+                image:
+                  type: string
+                  format: binary
+                  description: Image file
+                description:
+                  type: string
+                schedule:
+                  type: string
+                coordinator:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, inactive]
+      responses:
+        '200':
+          description: Updated
     delete:
-      tags:
-        - Categories
-      summary: Hapus Kategori
-      description: Menghapus kategori berdasarkan ID (hanya untuk admin)
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          example: 1
+      tags: [Kegiatan]
+      summary: Delete kegiatan
+      responses:
+        '204':
+          description: Deleted
+
+  /pengumuman:
+    get:
+      tags: [Pengumuman]
+      summary: List pengumuman
       responses:
         '200':
-          description: Kategori berhasil dihapus
+          description: List of pengumuman
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Kategori berhasil dihapus
-        '401':
-          description: Token tidak valid atau tidak ada
-        '404':
-          description: Kategori tidak ditemukan
-        '409':
-          description: Kategori tidak dapat dihapus karena masih digunakan oleh berita
-        '500':
-          description: Error server
+                type: array
+                items:
+                  $ref: '#/components/schemas/PengumumanItem'
+    post:
+      tags: [Pengumuman]
+      summary: Create pengumuman
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, category, pdfUrl, date, expiry, priority, status]
+              properties:
+                title:
+                  type: string
+                category:
+                  type: string
+                pdfUrl:
+                  type: string
+                  format: binary
+                  description: PDF file
+                date:
+                  type: string
+                  format: date
+                expiry:
+                  type: string
+                  format: date
+                priority:
+                  type: string
+                  enum: [high, medium, low]
+                status:
+                  type: string
+                  enum: [active, expired]
+      responses:
+        '201':
+          description: Created
+  /pengumuman/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [Pengumuman]
+      summary: Get pengumuman by id
+      responses:
+        '200':
+          description: Pengumuman item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PengumumanItem'
+    put:
+      tags: [Pengumuman]
+      summary: Update pengumuman
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, category, pdfUrl, date, expiry, priority, status]
+              properties:
+                title:
+                  type: string
+                category:
+                  type: string
+                pdfUrl:
+                  type: string
+                  format: binary
+                  description: PDF file
+                date:
+                  type: string
+                  format: date
+                expiry:
+                  type: string
+                  format: date
+                priority:
+                  type: string
+                  enum: [high, medium, low]
+                status:
+                  type: string
+                  enum: [active, expired]
+      responses:
+        '200':
+          description: Updated
+    delete:
+      tags: [Pengumuman]
+      summary: Delete pengumuman
+      responses:
+        '204':
+          description: Deleted
 
-# ==========================================
-# SECURITY DEFINITIONS
-# ==========================================
-security:
-  - BearerAuth: []
+components:
+  schemas:
+    BeritaItem:
+      type: object
+      required: [id, title, category, date, status, author, content, excerpt, image]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        category:
+          type: string
+        date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [published, draft]
+        author:
+          type: string
+        content:
+          type: string
+          description: HTML content (frontend stores HTML)
+        excerpt:
+          type: string
+        image:
+          type: string
+          description: URL or path to image
+    BeritaInput:
+      type: object
+      required: [title, category, date, status, author, content, excerpt, image]
+      properties:
+        title:
+          type: string
+        category:
+          type: string
+        date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [published, draft]
+        author:
+          type: string
+        content:
+          type: string
+        excerpt:
+          type: string
+        image:
+          type: string
+
+    GaleriItem:
+      type: object
+      required: [id, title, category, url, date]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        category:
+          type: string
+        url:
+          type: string
+          description: image URL or path
+        date:
+          type: string
+          format: date
+    GaleriInput:
+      type: object
+      required: [title, category, url, date]
+      properties:
+        title:
+          type: string
+        category:
+          type: string
+        url:
+          type: string
+        date:
+          type: string
+          format: date
+
+    KegiatanItem:
+      type: object
+      required: [id, name, image, description, schedule, coordinator, status]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        image:
+          type: string
+          description: image URL or path
+        description:
+          type: string
+        schedule:
+          type: string
+        coordinator:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+    KegiatanInput:
+      type: object
+      required: [name, image, description, schedule, coordinator, status]
+      properties:
+        name:
+          type: string
+        image:
+          type: string
+          description: image URL or path
+        description:
+          type: string
+        schedule:
+          type: string
+        coordinator:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+
+    PengumumanItem:
+      type: object
+      required: [id, title, category, pdfUrl, date, expiry, priority, status]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        category:
+          type: string
+        pdfUrl:
+          type: string
+          description: URL or path to PDF file
+        date:
+          type: string
+          format: date
+        expiry:
+          type: string
+          format: date
+        priority:
+          type: string
+          enum: [high, medium, low]
+        status:
+          type: string
+          enum: [active, expired]
+    PengumumanInput:
+      type: object
+      required: [title, category, pdfUrl, date, expiry, priority, status]
+      properties:
+        title:
+          type: string
+        category:
+          type: string
+        pdfUrl:
+          type: string
+          description: URL or path to PDF file
+        date:
+          type: string
+          format: date
+        expiry:
+          type: string
+          format: date
+        priority:
+          type: string
+          enum: [high, medium, low]
+        status:
+          type: string
+          enum: [active, expired]
+
+  responses:
+    NotFound:
+      description: Resource not found
+    ValidationError:
+      description: Invalid input

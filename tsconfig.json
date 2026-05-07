@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
+    /* Tambahkan baris ini untuk membungkam warning */
+    "ignoreDeprecations": "6.0",
+
     /* Bahasa & Target Lingkungan */
-    "target": "ES2022",                                  /* Target ECMAScript modern (Node 18+ yang dipakai Vercel) */
-    "module": "CommonJS",                                /* Standar module untuk Express.js */
+    "target": "ES2022",
+    "module": "CommonJS",
     "moduleResolution": "node",                          /* Cara TS mencari module (standar Node) */
     
     /* Direktori */

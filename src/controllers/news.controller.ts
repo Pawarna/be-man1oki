@@ -2,77 +2,85 @@ import { Request, Response } from 'express';
 import { NewsService } from '../services/news.service';
 import { StorageService } from '../services/storage.service';
 import { catchAsync } from '../utils/catchAsync';
-import { sendResponse } from '../utils/ApiResponse';
 
 export const NewsController = {
   create: catchAsync(async (req: Request, res: Response) => {
-    let { title, content, status, categoryId } = req.body;
-    const authorId = req.user.id;
+    const { title, content, excerpt, status, category, author, date } = req.body;
 
-    // 1. Wajibkan file thumbnail saat create
     if (!req.file) {
-      return sendResponse(res, 400, false, 'File thumbnail wajib diupload');
+      return res.status(400).json({ error: 'File gambar (image) wajib diupload' });
     }
 
-    // 2. Upload thumbnail ke Storage
-    const thumbnailUrl = await StorageService.uploadImage(req.file);
-
-    // 3. Parse data dari string ke tipe aslinya
+    const imageUrl = await StorageService.uploadImage(req.file);
     const parsedContent = typeof content === 'string' ? JSON.parse(content) : content;
-    const parsedCategoryId = categoryId ? parseInt(categoryId, 10) : null;
 
-    // 4. Simpan ke database
     const data = await NewsService.createNews({
       title,
       content: parsedContent,
-      thumbnail: thumbnailUrl,
-      status,
-      categoryId: parsedCategoryId,
-      authorId
+      excerpt,
+      image: imageUrl,
+      status: status || 'draft',
+      category,
+      author,
+      date: date ? new Date(date) : new Date()
     });
 
-    sendResponse(res, 201, true, 'Berita berhasil diterbitkan', data);
+    res.status(201).json(data);
   }),
 
   update: catchAsync(async (req: Request, res: Response) => {
-    const id = parseInt(req.params.id as string );
-    let { title, content, status, categoryId } = req.body;
+    const id = parseInt(req.params.id as string);
+    const { title, content, excerpt, status, category, author, date } = req.body;
 
-    const updateData: any = { title, status };
+    const updateData: any = {};
+    if (title) updateData.title = title;
+    if (excerpt) updateData.excerpt = excerpt;
+    if (status) updateData.status = status;
+    if (category) updateData.category = category;
+    if (author) updateData.author = author;
+    if (date) updateData.date = new Date(date);
 
-    // Jika admin mengupload thumbnail baru
     if (req.file) {
-      updateData.thumbnail = await StorageService.uploadImage(req.file);
+      updateData.image = await StorageService.uploadImage(req.file);
     }
 
-    // Parse data jika ikut dikirim
     if (content) {
       updateData.content = typeof content === 'string' ? JSON.parse(content) : content;
     }
-    if (categoryId !== undefined) {
-      updateData.categoryId = categoryId ? parseInt(categoryId, 10) : null;
-    }
 
     const data = await NewsService.updateNews(id, updateData);
-    sendResponse(res, 200, true, 'Berita berhasil diperbarui', data);
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Berita tidak ditemukan' });
+    }
+
+    res.status(200).json(data);
   }),
 
   list: catchAsync(async (req: Request, res: Response) => {
-    const data = await NewsService.getAllNews();
-    sendResponse(res, 200, true, 'Daftar berita berhasil diambil', data);
+    const page = parseInt(req.query.page as string) || 1;
+    const perPage = parseInt(req.query.perPage as string) || 10;
+    const q = req.query.q as string;
+    const status = req.query.status as string;
+
+    const result = await NewsService.getAllNews({ page, perPage, q, status });
+    res.status(200).json(result);
   }),
 
   detail: catchAsync(async (req: Request, res: Response) => {
-    const data = await NewsService.getNewsBySlug(req.params.slug as string);
-    if (!data) return sendResponse(res, 404, false, 'Berita tidak ditemukan');
+    const id = parseInt(req.params.id as string);
+    const data = await NewsService.getNewsById(id);
     
-    sendResponse(res, 200, true, 'Detail berita berhasil diambil', data);
+    if (!data) {
+      return res.status(404).json({ error: 'Berita tidak ditemukan' });
+    }
+
+    res.status(200).json(data);
   }),
 
   delete: catchAsync(async (req: Request, res: Response) => {
     const id = parseInt(req.params.id as string);
     await NewsService.deleteNews(id);
-    
-    sendResponse(res, 200, true, 'Berita berhasil dihapus');
+    res.status(204).send();
   })
 };

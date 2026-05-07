@@ -1,140 +1,232 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, ilike, or, sql } from 'drizzle-orm';
 import { db } from '../config/db';
-import { news, users, categories } from '../db/schema';
+import { news, kategoriBerita, users } from '../db/schema';
 
-// Definisi tipe data payload untuk pembuatan berita
+// 1. Sesuaikan Payload dengan Skema Baru
 type CreateNewsPayload = {
   title: string;
-  content: any; // Menerima JSON Object dari Tiptap
-  thumbnail: string;
-  status: 'draft' | 'published' | 'archived';
-  authorId: string; // UUID dari Supabase Auth
-  categoryId?: number | null;
+  content: any;
+  excerpt: string;
+  image: string;
+  status?: 'draft' | 'published' | 'archived';
+  category?: string | null;
+  author?: string;
+  date?: Date;
 };
 
-// Definisi tipe data untuk update (semua field bersifat opsional)
-type UpdateNewsPayload = Partial<Omit<CreateNewsPayload, 'authorId'>>;
-
 export const NewsService = {
-  /**
-   * Helper untuk membuat slug URL yang SEO friendly
-   * Contoh: "Lomba Koding 2026" -> "lomba-koding-2026"
-   */
+  // Helper membuat slug
   createSlug(title: string) {
-    return title
-      .toLowerCase()
-      .replace(/[^\w ]+/g, '') // Hapus karakter non-alphanumeric
-      .replace(/ +/g, '-');    // Ubah spasi menjadi strip
+    return title.toLowerCase().replace(/[^\w ]+/g, '').replace(/ +/g, '-');
   },
 
-  /**
-   * Insert berita baru ke database
-   */
   async createNews(data: CreateNewsPayload) {
-    // Tambahkan timestamp di akhir slug agar selalu unik (menghindari error unique constraint)
-    const slug = `${this.createSlug(data.title)}-${Date.now()}`;
-    
+    let baseSlug = this.createSlug(data.title);
+    let slug = baseSlug;
+
+    // Cek duplikasi slug
+    const existing = await db.select().from(news).where(eq(news.slug, slug));
+    if (existing.length > 0) {
+      slug = `${baseSlug}-${Date.now()}`;
+    }
+
+    // Resolve category name to ID
+    let categoryId: number | null = null;
+    if (data.category) {
+      const [categoryResult] = await db
+        .select()
+        .from(kategoriBerita)
+        .where(ilike(kategoriBerita.name, data.category));
+      
+      if (!categoryResult) {
+        // Create category if not exists
+        const [newCategory] = await db
+          .insert(kategoriBerita)
+          .values({
+            name: data.category,
+            slug: this.createSlug(data.category)
+          })
+          .returning();
+        categoryId = newCategory?.id || null;
+      } else {
+        categoryId = categoryResult.id;
+      }
+    }
+
+    // Resolve author name to ID (or use default/system user)
+    let authorId = 'system-user'; // Default user ID
+    if (data.author) {
+      const [authorResult] = await db
+        .select()
+        .from(users)
+        .where(ilike(users.name, data.author));
+      
+      if (authorResult) {
+        authorId = authorResult.id;
+      }
+    }
+
+    // Insert data
     const result = await db.insert(news).values({
-      ...data,
+      title: data.title,
       slug,
+      content: data.content,
+      excerpt: data.excerpt,
+      image: data.image,
+      status: data.status || 'draft',
+      date: data.date || new Date(),
+      authorId,
+      categoryId
     }).returning();
-    
+
     return result[0];
   },
 
-  /**
-   * Mengambil semua daftar berita beserta nama penulis dan nama kategorinya
-   */
-  async getAllNews() {
-    return await db
+  async getNewsById(id: number) {
+    const data = await db
       .select({
         id: news.id,
         title: news.title,
-        slug: news.slug,
-        thumbnail: news.thumbnail,
+        category: kategoriBerita.name,
+        date: news.date,
         status: news.status,
-        createdAt: news.createdAt,
-        // Ambil data dari tabel berelasi
-        author: {
-          id: users.id,
-          name: users.name,
-        },
-        category: {
-          id: categories.id,
-          name: categories.name,
-        }
+        author: users.name,
+        content: news.content,
+        excerpt: news.excerpt,
+        image: news.image,
       })
       .from(news)
-      // Left join ke tabel users berdasarkan authorId
+      .leftJoin(kategoriBerita, eq(news.categoryId, kategoriBerita.id))
       .leftJoin(users, eq(news.authorId, users.id))
-      // Left join ke tabel categories berdasarkan categoryId
-      .leftJoin(categories, eq(news.categoryId, categories.id))
-      // Urutkan dari yang paling baru
-      .orderBy(desc(news.createdAt));
+      .where(eq(news.id, id));
+
+    return data[0];
   },
 
-  /**
-   * Mengambil detail spesifik satu berita (termasuk konten JSON Tiptap-nya)
-   */
   async getNewsBySlug(slug: string) {
-    const result = await db
+    const data = await db
       .select({
         id: news.id,
         title: news.title,
-        slug: news.slug,
-        content: news.content, // Konten JSON Tiptap dimuat di sini
-        thumbnail: news.thumbnail,
+        category: kategoriBerita.name,
+        date: news.date,
         status: news.status,
-        createdAt: news.createdAt,
-        updatedAt: news.updatedAt,
-        author: {
-          id: users.id,
-          name: users.name,
-        },
-        category: {
-          id: categories.id,
-          name: categories.name,
-        }
+        author: users.name,
+        content: news.content,
+        excerpt: news.excerpt,
+        image: news.image,
       })
       .from(news)
+      .leftJoin(kategoriBerita, eq(news.categoryId, kategoriBerita.id))
       .leftJoin(users, eq(news.authorId, users.id))
-      .leftJoin(categories, eq(news.categoryId, categories.id))
       .where(eq(news.slug, slug));
+
+    return data[0];
+  },
+
+  async updateNews(id: number, data: Partial<CreateNewsPayload>) {
+    const updateData: any = {};
+
+    if (data.title) {
+      updateData.title = data.title;
+      updateData.slug = this.createSlug(data.title);
+    }
+    if (data.content) updateData.content = data.content;
+    if (data.excerpt) updateData.excerpt = data.excerpt;
+    if (data.image) updateData.image = data.image;
+    if (data.status) updateData.status = data.status;
+    if (data.date) updateData.date = data.date;
+
+    // Handle category
+    if (data.category !== undefined) {
+      if (data.category === null) {
+        updateData.categoryId = null;
+      } else {
+        const [categoryResult] = await db
+          .select()
+          .from(kategoriBerita)
+          .where(ilike(kategoriBerita.name, data.category));
+        
+        if (categoryResult) {
+          updateData.categoryId = categoryResult.id;
+        }
+      }
+    }
+
+    // Handle author
+    if (data.author) {
+      const [authorResult] = await db
+        .select()
+        .from(users)
+        .where(ilike(users.name, data.author));
       
+      if (authorResult) {
+        updateData.authorId = authorResult.id;
+      }
+    }
+
+    const result = await db.update(news).set(updateData).where(eq(news.id, id)).returning();
     return result[0];
   },
 
-  /**
-   * Memperbarui data berita berdasarkan ID
-   */
-  async updateNews(id: number, data: UpdateNewsPayload) {
-    // Jika title diubah, kita bisa memilih untuk membuat slug baru atau membiarkan slug lama.
-    // Best practice SEO adalah membiarkan slug lama, namun jika ingin diubah, uncomment di bawah ini:
-    // let newSlug;
-    // if (data.title) newSlug = `${this.createSlug(data.title)}-${Date.now()}`;
-
-    const result = await db
-      .update(news)
-      .set({ 
-        ...data, 
-        // slug: newSlug || undefined,
-        updatedAt: new Date() 
-      })
-      .where(eq(news.id, id))
-      .returning();
-      
-    return result[0];
-  },
-
-  /**
-   * Menghapus berita berdasarkan ID
-   */
   async deleteNews(id: number) {
-    const result = await db
-      .delete(news)
-      .where(eq(news.id, id))
-      .returning();
-      
+    const result = await db.delete(news).where(eq(news.id, id)).returning();
     return result[0];
-  }
+  },
+
+  async getAllNews(params: { page: number; perPage: number; q?: string; status?: string }) {
+    const { page, perPage, q, status } = params;
+    const offset = (page - 1) * perPage;
+
+    const conditions = [];
+    
+    if (status) {
+      conditions.push(eq(news.status, status as any));
+    }
+    
+    if (q) {
+      conditions.push(
+        or(
+          ilike(news.title, `%${q}%`),
+          ilike(news.excerpt, `%${q}%`)
+        )
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [totalResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(news)
+      .where(whereClause);
+    
+    const total = Number(totalResult.count);
+
+    const data = await db
+      .select({
+        id: news.id,
+        title: news.title,
+        category: kategoriBerita.name,
+        date: news.date,
+        status: news.status,
+        author: users.name,
+        content: news.content,
+        excerpt: news.excerpt,
+        image: news.image,
+      })
+      .from(news)
+      .leftJoin(kategoriBerita, eq(news.categoryId, kategoriBerita.id))
+      .leftJoin(users, eq(news.authorId, users.id))
+      .where(whereClause)
+      .orderBy(desc(news.date))
+      .limit(perPage)
+      .offset(offset);
+
+    return {
+      items: data,
+      total,
+      page,
+      perPage
+    };
+  },
 };

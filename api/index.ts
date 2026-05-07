@@ -4,8 +4,10 @@ import dotenv from 'dotenv';
 
 // Import Routes
 import userRoutes from '../src/routes/user.routes';
-import newsRoutes from '../src/routes/news.routes'; // Buka saat CRUD berita siap
-import categoryRoutes from '../src/routes/category.routes'; // Buka saat CRUD kategori siap
+import beritaRoutes from '../src/routes/news.routes';
+import galeriRoutes from '../src/routes/galeri.routes';
+import kegiatanRoutes from '../src/routes/kegiatan.routes';
+import pengumumanRoutes from '../src/routes/pengumuman.routes';
 
 // Import Global Error Handler
 import { globalErrorHandler } from '../src/middlewares/error.middleware';
@@ -20,7 +22,7 @@ const app = express();
 // ==========================================
 app.use(cors()); // Izinkan frontend mengakses API ini
 app.use(express.json()); // Parsing payload JSON (Penting untuk Tiptap & form data)
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true })); 
 
 // ==========================================
 // 2. HEALTH CHECK ENDPOINT
@@ -41,9 +43,11 @@ app.get('/api', (req: Request, res: Response) => {
 // Semua rute terkait user (termasuk setup admin)
 app.use('/api/users', userRoutes);
 
-// Semua rute terkait berita (buka nanti)
-app.use('/api/news', newsRoutes);
-app.use('/api/categories', categoryRoutes)
+// Semua rute terkait berita (admin panel)
+app.use('/api/berita', beritaRoutes);
+app.use('/api/galeri', galeriRoutes);
+app.use('/api/kegiatan', kegiatanRoutes);
+app.use('/api/pengumuman', pengumumanRoutes);
 
 
 
