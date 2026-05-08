@@ -30,32 +30,40 @@ export const NewsService = {
       slug = `${baseSlug}-${Date.now()}`;
     }
 
-    // Resolve category name to ID
+    // Resolve category (can be name or ID)
     let categoryId: number | null = null;
     if (data.category) {
-      const [categoryResult] = await db
-        .select()
-        .from(kategoriBerita)
-        .where(ilike(kategoriBerita.name, data.category));
+      const isNumeric = /^\d+$/.test(data.category);
       
-      if (!categoryResult) {
-        // Create category if not exists
-        const [newCategory] = await db
-          .insert(kategoriBerita)
-          .values({
-            name: data.category,
-            slug: this.createSlug(data.category)
-          })
-          .returning();
-        categoryId = newCategory?.id || null;
+      if (isNumeric) {
+        categoryId = parseInt(data.category);
       } else {
-        categoryId = categoryResult.id;
+        const [categoryResult] = await db
+          .select()
+          .from(kategoriBerita)
+          .where(ilike(kategoriBerita.name, data.category));
+        
+        if (!categoryResult) {
+          // Create category if not exists
+          const [newCategory] = await db
+            .insert(kategoriBerita)
+            .values({
+              name: data.category,
+              slug: this.createSlug(data.category)
+            })
+            .returning();
+          categoryId = newCategory?.id || null;
+        } else {
+          categoryId = categoryResult.id;
+        }
       }
     }
 
-    // Resolve author name to ID (or use default/system user)
-    let authorId = 'system-user'; // Default user ID
+    // Resolve author (can be name or ID/UUID)
+    let authorId: string | null = null;
+    
     if (data.author) {
+      // Try to find by name first
       const [authorResult] = await db
         .select()
         .from(users)
@@ -63,6 +71,22 @@ export const NewsService = {
       
       if (authorResult) {
         authorId = authorResult.id;
+      } else {
+        // Check if it's a valid UUID
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(data.author)) {
+          authorId = data.author;
+        }
+      }
+    }
+
+    // Fallback: If still no authorId, get the first available user
+    if (!authorId) {
+      const [fallbackUser] = await db.select().from(users).limit(1);
+      if (fallbackUser) {
+        authorId = fallbackUser.id;
+      } else {
+        throw new Error('Penulis tidak ditemukan dan tidak ada user terdaftar di sistem.');
       }
     }
 
@@ -142,13 +166,18 @@ export const NewsService = {
       if (data.category === null) {
         updateData.categoryId = null;
       } else {
-        const [categoryResult] = await db
-          .select()
-          .from(kategoriBerita)
-          .where(ilike(kategoriBerita.name, data.category));
-        
-        if (categoryResult) {
-          updateData.categoryId = categoryResult.id;
+        const isNumeric = /^\d+$/.test(data.category);
+        if (isNumeric) {
+          updateData.categoryId = parseInt(data.category);
+        } else {
+          const [categoryResult] = await db
+            .select()
+            .from(kategoriBerita)
+            .where(ilike(kategoriBerita.name, data.category));
+          
+          if (categoryResult) {
+            updateData.categoryId = categoryResult.id;
+          }
         }
       }
     }
@@ -162,6 +191,11 @@ export const NewsService = {
       
       if (authorResult) {
         updateData.authorId = authorResult.id;
+      } else {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(data.author)) {
+          updateData.authorId = data.author;
+        }
       }
     }
 

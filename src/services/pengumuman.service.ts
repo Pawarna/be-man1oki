@@ -4,7 +4,6 @@ import { pengumuman, kategoriPengumuman } from '../db/schema';
 
 type CreatePengumumanPayload = {
   title: string;
-  content: string;
   pdfUrl?: string | null;
   expiry: Date;
   priority?: 'high' | 'medium' | 'low';
@@ -43,7 +42,6 @@ export const PengumumanService = {
 
     const result = await db.insert(pengumuman).values({
       title: data.title,
-      content: data.content,
       pdfUrl: data.pdfUrl || null,
       expiry: data.expiry,
       priority: data.priority || 'medium',
@@ -60,7 +58,6 @@ export const PengumumanService = {
       .select({
         id: pengumuman.id,
         title: pengumuman.title,
-        content: pengumuman.content,
         pdfUrl: pengumuman.pdfUrl,
         date: pengumuman.date,
         expiry: pengumuman.expiry,
@@ -78,7 +75,6 @@ export const PengumumanService = {
       .select({
         id: pengumuman.id,
         title: pengumuman.title,
-        content: pengumuman.content,
         pdfUrl: pengumuman.pdfUrl,
         date: pengumuman.date,
         expiry: pengumuman.expiry,
@@ -97,7 +93,6 @@ export const PengumumanService = {
     const updateData: any = {};
 
     if (data.title) updateData.title = data.title;
-    if (data.content) updateData.content = data.content;
     if (data.pdfUrl !== undefined) updateData.pdfUrl = data.pdfUrl;
     if (data.expiry) updateData.expiry = data.expiry;
     if (data.priority) updateData.priority = data.priority;

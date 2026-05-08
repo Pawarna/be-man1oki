@@ -15,7 +15,7 @@ router.get('/:id', PengumumanController.detail);
 router.post(
   '/', 
   requireAuth, 
-  upload.single('file'), // <-- Frontend harus mengirim file dengan nama form 'file'
+  upload.single('pdfUrl'), // <-- Gunakan field 'pdfUrl' untuk upload PDF
   validate(pengumumanSchema), 
   PengumumanController.create
 );
@@ -23,7 +23,7 @@ router.post(
 router.put(
   '/:id', 
   requireAuth, 
-  upload.single('file'), // <-- Tambahkan juga di rute PUT
+  upload.single('pdfUrl'), // <-- Tambahkan juga di rute PUT
   validate(updatePengumumanSchema), 
   PengumumanController.update
 );

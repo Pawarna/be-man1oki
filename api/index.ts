@@ -41,7 +41,7 @@ app.get('/api', (req: Request, res: Response) => {
 // 3. REGISTER ROUTES
 // ==========================================
 // Semua rute terkait user (termasuk setup admin)
-app.use('/api/users', userRoutes);
+app.use('/api/auth', userRoutes);
 
 // Semua rute terkait berita (admin panel)
 app.use('/api/berita', beritaRoutes);

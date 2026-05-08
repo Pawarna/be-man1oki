@@ -90,7 +90,6 @@ export const kegiatan = pgTable('kegiatan', {
 export const pengumuman = pgTable('pengumuman', {
   id: serial('id').primaryKey(),
   title: varchar('title', { length: 255 }).notNull(),
-  content: text('content').notNull(),
   pdfUrl: text('pdf_url'), // URL PDF pengumuman
   date: timestamp('date').defaultNow().notNull(),
   expiry: timestamp('expiry').notNull(),

@@ -5,7 +5,7 @@ import { catchAsync } from '../utils/catchAsync';
 
 export const PengumumanController = {
   create: catchAsync(async (req: Request, res: Response) => {
-    const { title, content, expiry, priority, status, category, date } = req.body;
+    const { title, expiry, priority, status, category, date } = req.body;
     let pdfUrl = null;
 
     if (req.file) {
@@ -14,7 +14,6 @@ export const PengumumanController = {
 
     const payload = {
       title,
-      content,
       pdfUrl,
       expiry: new Date(expiry),
       priority: priority || 'medium',
@@ -29,11 +28,10 @@ export const PengumumanController = {
 
   update: catchAsync(async (req: Request, res: Response) => {
     const id = parseInt(req.params.id as string);
-    const { title, content, expiry, priority, status, category, date } = req.body;
+    const { title, expiry, priority, status, category, date } = req.body;
     
     const payload: any = {};
     if (title) payload.title = title;
-    if (content) payload.content = content;
     if (expiry) payload.expiry = new Date(expiry);
     if (priority) payload.priority = priority;
     if (status) payload.status = status;
