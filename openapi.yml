@@ -8,12 +8,56 @@ info:
 servers:
   - url: http://localhost:3000/api
     description: Local dev server
+security:
+  - bearerAuth: []
 tags:
   - name: Berita
   - name: Galeri
   - name: Kegiatan
   - name: Pengumuman
+  - name: Dashboard
+  - name: Auth
 paths:
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Get admin dashboard statistics and recent activities
+      responses:
+        '200':
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login to admin dashboard
+      security: [] # No auth required for login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+
   /berita:
     get:
       tags: [Berita]
@@ -267,10 +311,13 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [name, image, description, schedule, coordinator, status]
+              required: [name, category, image, description, schedule, coordinator, status]
               properties:
                 name:
                   type: string
+                category:
+                  type: string
+                  description: e.g. Akademik, Prestasi, Ekstrakurikuler
                 image:
                   type: string
                   format: binary
@@ -313,9 +360,11 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [name, image, description, schedule, coordinator, status]
+              required: [name, category, image, description, schedule, coordinator, status]
               properties:
                 name:
+                  type: string
+                category:
                   type: string
                 image:
                   type: string
@@ -528,11 +577,13 @@ components:
 
     KegiatanItem:
       type: object
-      required: [id, name, image, description, schedule, coordinator, status]
+      required: [id, name, category, image, description, schedule, coordinator, status]
       properties:
         id:
           type: integer
         name:
+          type: string
+        category:
           type: string
         image:
           type: string
@@ -548,9 +599,11 @@ components:
           enum: [active, inactive]
     KegiatanInput:
       type: object
-      required: [name, image, description, schedule, coordinator, status]
+      required: [name, category, image, description, schedule, coordinator, status]
       properties:
         name:
+          type: string
+        category:
           type: string
         image:
           type: string
@@ -613,6 +666,70 @@ components:
         status:
           type: string
           enum: [active, expired]
+
+    DashboardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            totals:
+              type: object
+              properties:
+                berita: { type: integer }
+                galeri: { type: integer }
+                kegiatan: { type: integer }
+                pengumuman: { type: integer }
+            newsStatus:
+              type: array
+              items:
+                type: object
+                properties:
+                  status: { type: string }
+                  count: { type: integer }
+            latestNews:
+              type: array
+              items:
+                $ref: '#/components/schemas/BeritaItem'
+            latestPengumuman:
+              type: array
+              items:
+                $ref: '#/components/schemas/PengumumanItem'
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+            user:
+              type: object
+              properties:
+                id:
+                  type: string
+                email:
+                  type: string
+                user_metadata:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                role:
+                  type: string
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
 
   responses:
     NotFound:

@@ -8,6 +8,7 @@ import beritaRoutes from '../src/routes/news.routes';
 import galeriRoutes from '../src/routes/galeri.routes';
 import kegiatanRoutes from '../src/routes/kegiatan.routes';
 import pengumumanRoutes from '../src/routes/pengumuman.routes';
+import dashboardRoutes from '../src/routes/dashboard.routes';
 
 // Import Global Error Handler
 import { globalErrorHandler } from '../src/middlewares/error.middleware';
@@ -48,6 +49,7 @@ app.use('/api/berita', beritaRoutes);
 app.use('/api/galeri', galeriRoutes);
 app.use('/api/kegiatan', kegiatanRoutes);
 app.use('/api/pengumuman', pengumumanRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 
 

@@ -8,6 +8,7 @@ type CreateKegiatanPayload = {
   description: string;
   schedule: string;
   coordinator: string;
+  category: string;
   status?: 'active' | 'inactive';
 };
 

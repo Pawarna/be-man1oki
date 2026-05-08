@@ -81,6 +81,7 @@ export const kegiatan = pgTable('kegiatan', {
   description: text('description').notNull(),
   schedule: varchar('schedule', { length: 255 }).notNull(),
   coordinator: varchar('coordinator', { length: 255 }).notNull(),
+  category: varchar('category', { length: 100 }).notNull().default('Umum'),
   status: statusKegiatanEnum('status').default('active').notNull(),
 });
 

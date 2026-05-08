@@ -5,7 +5,7 @@ import { catchAsync } from '../utils/catchAsync';
 
 export const KegiatanController = {
   create: catchAsync(async (req: Request, res: Response) => {
-    const { name, description, schedule, coordinator, status } = req.body;
+    const { name, description, schedule, coordinator, category, status } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ error: 'File gambar (image) wajib diupload' });
@@ -19,6 +19,7 @@ export const KegiatanController = {
       description,
       schedule,
       coordinator,
+      category,
       status: status || 'active'
     });
 
@@ -43,13 +44,14 @@ export const KegiatanController = {
 
   update: catchAsync(async (req: Request, res: Response) => {
     const id = parseInt(req.params.id as string);
-    const { name, description, schedule, coordinator, status } = req.body;
+    const { name, description, schedule, coordinator, category, status } = req.body;
 
     const updateData: any = {};
     if (name) updateData.name = name;
     if (description) updateData.description = description;
     if (schedule) updateData.schedule = schedule;
     if (coordinator) updateData.coordinator = coordinator;
+    if (category) updateData.category = category;
     if (status) updateData.status = status;
 
     if (req.file) {
